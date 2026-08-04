@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OssDsign – ägartrend (Avanza & Nordnet)</title>
+<title>Agartracker – ägartrend (Avanza & Nordnet)</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 <style>
   :root {
@@ -25,26 +25,20 @@
     padding: 24px 16px 48px;
   }
   .wrap { max-width: 900px; margin: 0 auto; }
-  h1 {
-    font-size: 1.4rem;
-    font-weight: 600;
-    margin: 0 0 4px;
+  h1 { font-size: 1.4rem; font-weight: 600; margin: 0 0 4px; }
+  .subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 16px; }
+
+  .stock-tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+  .stock-tabs button {
+    background: var(--card); border: 1px solid var(--border); color: var(--text);
+    padding: 8px 18px; border-radius: 999px; font-size: 0.95rem; font-weight: 500;
+    cursor: pointer; transition: all 0.15s ease;
   }
-  .subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 20px; }
-  .stats {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-    margin-bottom: 20px;
-  }
-  .stat-card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 14px 18px;
-    flex: 1;
-    min-width: 140px;
-  }
+  .stock-tabs button:hover { border-color: var(--muted); }
+  .stock-tabs button.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+
+  .stats { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+  .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px; flex: 1; min-width: 140px; }
   .stat-card .label { color: var(--muted); font-size: 0.8rem; margin-bottom: 4px; }
   .stat-card .value { font-size: 1.6rem; font-weight: 700; }
   .stat-card .diff { font-size: 0.85rem; margin-top: 2px; }
@@ -52,52 +46,26 @@
   .diff.down { color: var(--avanza); }
   .diff.flat { color: var(--muted); }
   .stat-card .sublabel { color: var(--muted); font-size: 0.75rem; margin-top: 2px; }
-  .card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 16px;
-  }
-  .range-buttons {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 16px;
-    flex-wrap: wrap;
-  }
+
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .range-buttons { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
   .range-buttons button {
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--text);
-    padding: 6px 14px;
-    border-radius: 999px;
-    font-size: 0.85rem;
-    cursor: pointer;
-    transition: all 0.15s ease;
+    background: transparent; border: 1px solid var(--border); color: var(--text);
+    padding: 6px 14px; border-radius: 999px; font-size: 0.85rem; cursor: pointer; transition: all 0.15s ease;
   }
   .range-buttons button:hover { border-color: var(--muted); }
-  .range-buttons button.active {
-    background: var(--text);
-    color: var(--bg);
-    border-color: var(--text);
-  }
+  .range-buttons button.active { background: var(--text); color: var(--bg); border-color: var(--text); }
   canvas { max-height: 420px; }
-  .empty {
-    text-align: center;
-    color: var(--muted);
-    padding: 60px 20px;
-  }
-  footer {
-    text-align: center;
-    color: var(--muted);
-    font-size: 0.75rem;
-    margin-top: 24px;
-  }
+  .empty { text-align: center; color: var(--muted); padding: 60px 20px; }
+  footer { text-align: center; color: var(--muted); font-size: 0.75rem; margin-top: 24px; }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>OssDsign (OSSD) – antal ägare</h1>
+  <h1 id="pageTitle">Agartracker</h1>
   <div class="subtitle">Avanza & Nordnet, uppdateras dagligen</div>
+
+  <div class="stock-tabs" id="stockTabs"></div>
 
   <div class="stats" id="stats"></div>
   <div class="stats" id="statsExtra" style="margin-top:-8px;"></div>
@@ -120,11 +88,19 @@
     </div>
   </div>
 
-  <footer>Data hämtad automatiskt från Avanza och Nordnets publika aktiesidor.</footer>
+  <footer>Data hämtad automatiskt från Avanza och Nordnets (via allaaktier.se) publika aktiesidor.</footer>
 </div>
 
 <script>
+const STOCKS = [
+  { key: "ossdsign", name: "OssDsign" },
+  { key: "smarteye", name: "Smart Eye" },
+  { key: "integrum", name: "Integrum" },
+];
+
+let currentStock = STOCKS[0].key;
 let fullData = [];
+let currentRange = "all";
 let chart = null;
 
 function daysAgo(n) {
@@ -138,6 +114,20 @@ function filterByRange(data, range) {
   const cutoff = { "1w": 7, "1m": 30, "3m": 91, "6m": 182, "1y": 365, "3y": 1095 }[range];
   const cutoffDate = daysAgo(cutoff);
   return data.filter(d => new Date(d.date) >= cutoffDate);
+}
+
+function renderStockTabs() {
+  const el = document.getElementById("stockTabs");
+  el.innerHTML = STOCKS.map(s =>
+    `<button data-key="${s.key}" class="${s.key === currentStock ? 'active' : ''}">${s.name}</button>`
+  ).join("");
+  el.querySelectorAll("button").forEach(btn => {
+    btn.addEventListener("click", () => {
+      currentStock = btn.dataset.key;
+      renderStockTabs();
+      loadStock(currentStock);
+    });
+  });
 }
 
 function renderStats(data) {
@@ -178,7 +168,6 @@ function renderStats(data) {
     card("Totalt", totalNow, diffLine(totalNow, totalPrev)) +
     card("Sen start", totalNow - totalStart >= 0 ? "+" + (totalNow - totalStart) : (totalNow - totalStart), "");
 
-  // Rekord (högsta någonsin)
   function recordFor(key) {
     let best = data[0];
     for (const d of data) if (d[key] > best[key]) best = d;
@@ -187,7 +176,6 @@ function renderStats(data) {
   const recAvanza = recordFor("avanza");
   const recNordnet = recordFor("nordnet");
 
-  // Streak: antal dagar i rad (från slutet) med ökning i totalt antal
   let streak = 0;
   for (let i = data.length - 1; i > 0; i--) {
     const currTotal = data[i].avanza + data[i].nordnet;
@@ -206,6 +194,7 @@ function renderStats(data) {
 }
 
 function renderChart(range) {
+  currentRange = range;
   const data = filterByRange(fullData, range);
   const labels = data.map(d => d.date);
   const avanzaData = data.map(d => d.avanza);
@@ -218,32 +207,14 @@ function renderChart(range) {
     data: {
       labels,
       datasets: [
-        {
-          label: "Avanza",
-          data: avanzaData,
-          borderColor: "#ff3b30",
-          backgroundColor: "rgba(255,59,48,0.08)",
-          tension: 0.25,
-          fill: true,
-          pointRadius: data.length > 60 ? 0 : 2,
-        },
-        {
-          label: "Nordnet",
-          data: nordnetData,
-          borderColor: "#34c9eb",
-          backgroundColor: "rgba(52,201,235,0.08)",
-          tension: 0.25,
-          fill: true,
-          pointRadius: data.length > 60 ? 0 : 2,
-        },
+        { label: "Avanza", data: avanzaData, borderColor: "#ff3b30", backgroundColor: "rgba(255,59,48,0.08)", tension: 0.25, fill: true, pointRadius: data.length > 60 ? 0 : 2 },
+        { label: "Nordnet", data: nordnetData, borderColor: "#34c9eb", backgroundColor: "rgba(52,201,235,0.08)", tension: 0.25, fill: true, pointRadius: data.length > 60 ? 0 : 2 },
       ],
     },
     options: {
       responsive: true,
       interaction: { mode: "index", intersect: false },
-      plugins: {
-        legend: { labels: { color: "#e8eaed" } },
-      },
+      plugins: { legend: { labels: { color: "#e8eaed" } } },
       scales: {
         x: { ticks: { color: "#8b94a3", maxTicksLimit: 8 }, grid: { color: "#262b33" } },
         y: { ticks: { color: "#8b94a3" }, grid: { color: "#262b33" } },
@@ -260,24 +231,35 @@ document.querySelectorAll("#rangeButtons button").forEach(btn => {
   });
 });
 
-fetch("./data/history.json?_=" + Date.now())
-  .then(r => r.json())
-  .then(data => {
-    fullData = data;
-    if (data.length === 0) {
+function loadStock(key) {
+  const stock = STOCKS.find(s => s.key === key);
+  document.getElementById("pageTitle").textContent = `Agartracker – ${stock.name}`;
+
+  fetch(`./data/history_${key}.json?_=` + Date.now())
+    .then(r => r.json())
+    .then(data => {
+      fullData = data;
+      if (data.length === 0) {
+        document.getElementById("chartHolder").style.display = "none";
+        document.getElementById("emptyState").style.display = "block";
+        document.getElementById("stats").innerHTML = "";
+        document.getElementById("statsExtra").innerHTML = "";
+        return;
+      }
+      document.getElementById("chartHolder").style.display = "block";
+      document.getElementById("emptyState").style.display = "none";
+      renderStats(data);
+      renderChart(currentRange);
+    })
+    .catch(() => {
       document.getElementById("chartHolder").style.display = "none";
       document.getElementById("emptyState").style.display = "block";
-      return;
-    }
-    renderStats(data);
-    renderChart("all");
-  })
-  .catch(() => {
-    document.getElementById("chartHolder").style.display = "none";
-    document.getElementById("emptyState").style.display = "block";
-    document.getElementById("emptyState").textContent =
-      "Kunde inte läsa data/history.json ännu.";
-  });
+      document.getElementById("emptyState").textContent = `Kunde inte läsa data/history_${key}.json ännu.`;
+    });
+}
+
+renderStockTabs();
+loadStock(currentStock);
 </script>
 </body>
 </html>

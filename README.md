@@ -1,10 +1,14 @@
-# OssDsign ägartracker
+# Agartracker
 
 Live-graf: **https://reddayio.github.io/Ossdsign-tracker/**
 
-Hämtar dagligen antal ägare hos **Avanza** och **Nordnet** för OssDsign (OSSD),
-sparar historik, uppdaterar en **Excel-fil**, och postar (när Discord-webhooken
-är på plats) en daglig uppdatering i Discord med länk till grafen.
+Hämtar dagligen antal ägare hos **Avanza** och **Nordnet** för flera aktier
+(just nu **OssDsign**, **Smart Eye**, **Integrum** – se `STOCKS` i
+`track_owners.py`), sparar historik per aktie, uppdaterar en **Excel-fil**
+(en flik per aktie), och postar (när Discord-webhooken är på plats) en
+daglig samlad uppdatering i Discord med länk till grafen.
+
+Dashboarden har flikar högst upp för att växla mellan aktierna.
 
 Körs helt automatiskt via GitHub Actions varje kväll kl 20:00 svensk tid.
 Ingen dator behöver vara på – allt sker i molnet.
@@ -31,14 +35,32 @@ index.html (GitHub Pages) läser data/history.json och ritar upp grafen
 ## Filstruktur
 
 ```
-track_owners.py             huvudscriptet, körs av GitHub Actions
-build_excel.py              bygger om Excel-filen utifrån historiken
-requirements.txt            Python-beroenden
-index.html                  den interaktiva grafen (GitHub Pages)
-data/history.json           historiken, en rad per dag (avanza, nordnet, datum)
-data/ossdsign_owners.xlsx   Excel-version av samma data, med diagram
-.github/workflows/track.yml schemat: körs 18:00 UTC (~20:00 svensk tid)
+track_owners.py                 huvudscriptet, körs av GitHub Actions
+build_excel.py                  bygger om Excel-filen (en flik per aktie)
+requirements.txt                Python-beroenden
+index.html                      dashboarden med aktie-flikar (GitHub Pages)
+data/history_<key>.json         historik per aktie, en rad per dag
+data/agartracker.xlsx           Excel med en flik per aktie, med diagram
+.github/workflows/track.yml     schemat: körs 18:00 UTC (~20:00 svensk tid)
 ```
+
+## Lägga till/ta bort aktier
+
+Redigera listan `STOCKS` i `track_owners.py`:
+
+```python
+STOCKS = [
+    {"key": "ossdsign", "name": "OssDsign", "avanza_id": "962596", "allaaktier_slug": "ossdsign"},
+    {"key": "smarteye", "name": "Smart Eye", "avanza_id": "710675", "allaaktier_slug": "smart-eye"},
+    {"key": "integrum", "name": "Integrum", "avanza_id": "753680", "allaaktier_slug": "integrum"},
+]
+```
+
+- `avanza_id`: numret i Avanzas URL, t.ex. `avanza.se/aktier/om-aktien.html/710675/smart-eye` → `710675`
+- `allaaktier_slug`: sista delen av `allaaktier.se/<slug>`-adressen
+
+Lägg samtidigt till motsvarande aktie i `STOCKS`-listan i `index.html`
+(sök efter `const STOCKS =`), så dyker fliken upp i dashboarden automatiskt.
 
 ## Varför just dessa datakällor (och inte andra)
 

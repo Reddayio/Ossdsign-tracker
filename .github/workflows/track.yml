@@ -38,6 +38,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/history.json data/ossdsign_owners.xlsx
+          git add data/
           git diff --staged --quiet && echo "Inga ändringar att committa." || git commit -m "Uppdatera ägarhistorik $(date -u +'%Y-%m-%d')"
           git push
