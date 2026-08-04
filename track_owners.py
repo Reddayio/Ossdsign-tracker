@@ -36,8 +36,11 @@ import requests
 # OssDsign på Avanza: avanza.se/aktier/om-aktien.html/962596/ossdsign
 AVANZA_ORDERBOOK_ID = "962596"
 
-# OssDsign på Nordnet
-NORDNET_URL = "https://www.nordnet.se/marknaden/aktiekurser/17041659-oss-dsign"
+# borsbolag.se visar en KOMBINERAD siffra (Avanza + Nordnet tillsammans) i
+# vanlig, server-renderad HTML. Nordnets egen sida är en JS-app som inte
+# visar ägarantal utan inloggning, så vi räknar istället ut Nordnet-delen
+# genom: kombinerad_siffra - avanza_siffra.
+BORSBOLAG_URL = "https://borsbolag.se/ossdsign/"
 
 DATA_FILE = Path(__file__).parent / "data" / "history.json"
 
@@ -114,45 +117,54 @@ def get_avanza_owners(orderbook_id: str) -> int:
 # Nordnet
 # ---------------------------------------------------------------------------
 
-def _find_owner_count_in_text(html: str):
-    """Leta efter kända JSON-nycklar för antal ägare i sidans råtext."""
-    for key in NORDNET_KEY_CANDIDATES:
-        m = re.search(rf'"{re.escape(key)}"\s*:\s*(\d+)', html, re.IGNORECASE)
-        if m:
-            return int(m.group(1)), key
+def get_combined_owners_borsbolag(url: str, debug: bool = False) -> int:
+    """Hämtar den KOMBINERADE ägarsiffran (Avanza + Nordnet) från borsbolag.se.
 
-    # Fallback: leta efter synlig text i stil med "Antal ägare ... 1 234"
-    m = re.search(r"[Aa]ntal\s*ägare[^0-9]{0,30}([\d\s\u00A0]{2,10})", html)
-    if m:
-        number = re.sub(r"[\s\u00A0]", "", m.group(1))
-        if number.isdigit():
-            return int(number), "text-fallback (Antal ägare)"
-
-    return None, None
-
-
-def get_nordnet_owners(url: str, debug: bool = False) -> int:
+    Sidan är en vanlig, server-renderad WordPress-sida med texten:
+    'Antal ägare av <bolag> på Avanza och Nordnet: <N> st'
+    """
     resp = requests.get(url, headers=HEADERS, timeout=20)
     resp.raise_for_status()
     html = resp.text
 
     if debug:
-        print("---- DEBUG: söker efter ägar-relaterade nycklar i Nordnet-sidan ----")
-        for m in re.finditer(r'"([A-Za-z]{3,40}[Oo]wner[A-Za-z]*)"\s*:\s*(\d+)', html):
-            print(f"  Kandidat: {m.group(1)} = {m.group(2)}")
-        for m in re.finditer(r"[Aa]ntal\s*ägare", html):
-            start = max(0, m.start() - 20)
-            print(f"  Text runt 'ägare': ...{html[start:m.start()+80]}...")
+        idx = html.find("Avanza och Nordnet")
+        print("---- DEBUG: kontext runt 'Avanza och Nordnet' ----")
+        print(html[max(0, idx - 100):idx + 300] if idx != -1 else "Hittade inte texten alls.")
         print("---- slut på debug-utskrift ----")
 
-    count, source = _find_owner_count_in_text(html)
-    if count is None:
+    idx = html.find("Avanza och Nordnet")
+    if idx == -1:
         raise RuntimeError(
-            "Kunde inte hitta antal ägare på Nordnets sida. Sidan kan ha ändrat "
-            "struktur. Kör 'python track_owners.py --debug-nordnet' och skicka "
-            "utskriften för felsökning."
+            "Kunde inte hitta text om 'Avanza och Nordnet' på borsbolag.se. "
+            "Sidan kan ha ändrat struktur. Kör med --debug-nordnet för mer info."
         )
-    return count
+
+    # Leta efter första talet följt av "st" inom en rimlig radie efter texten
+    window = html[idx:idx + 300]
+    m = re.search(r"([\d\s\u00A0]{2,10})\s*st\b", window)
+    if not m:
+        raise RuntimeError(
+            "Hittade texten 'Avanza och Nordnet' men inget tal med 'st' efter. "
+            "Kör med --debug-nordnet för att se den råa HTML-kontexten."
+        )
+    number = re.sub(r"[\s\u00A0]", "", m.group(1))
+    if not number.isdigit():
+        raise RuntimeError(f"Kunde inte tolka talet '{m.group(1)}' som ett heltal.")
+    return int(number)
+
+
+def get_nordnet_owners_derived(avanza_owners: int, debug: bool = False) -> int:
+    """Räknar ut Nordnet-antalet: kombinerad siffra (borsbolag.se) - Avanza."""
+    combined = get_combined_owners_borsbolag(BORSBOLAG_URL, debug=debug)
+    nordnet = combined - avanza_owners
+    if nordnet < 0:
+        raise RuntimeError(
+            f"Uträknat Nordnet-antal blev negativt ({nordnet}). "
+            f"Kombinerad siffra: {combined}, Avanza: {avanza_owners}. "
+            "Källorna kan vara ur synk (olika uppdateringstider) - kör om senare."
+        )
+    return nordnet
 
 
 # ---------------------------------------------------------------------------
@@ -235,7 +247,7 @@ def main():
     debug_avanza = "--debug-avanza" in sys.argv
 
     if debug_nordnet:
-        get_nordnet_owners(NORDNET_URL, debug=True)
+        get_combined_owners_borsbolag(BORSBOLAG_URL, debug=True)
         return
 
     if debug_avanza:
@@ -253,8 +265,8 @@ def main():
     avanza = get_avanza_owners(AVANZA_ORDERBOOK_ID)
     print(f"  Avanza: {avanza}")
 
-    print("Hämtar antal ägare hos Nordnet...")
-    nordnet = get_nordnet_owners(NORDNET_URL)
+    print("Räknar ut antal ägare hos Nordnet (via borsbolag.se kombinerad siffra)...")
+    nordnet = get_nordnet_owners_derived(avanza)
     print(f"  Nordnet: {nordnet}")
 
     history = load_history()
