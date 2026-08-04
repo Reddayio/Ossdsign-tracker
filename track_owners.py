@@ -116,36 +116,58 @@ def get_avanza_owners(orderbook_id: str) -> int:
 # Nordnet
 # ---------------------------------------------------------------------------
 
+def _extract_owner_count_from_html(html: str, label: str):
+    """Hittar ett tal följt av 'st' i närheten av en textetikett, robust mot
+    HTML-taggar och specialtecken (&nbsp;, &#xA0;) mellan etikett och tal
+    (t.ex. <td>Ägare Nordnet</td><td>721&nbsp;st</td>).
+    """
+    idx = html.find(label)
+    if idx == -1:
+        return None
+
+    window = html[idx:idx + 300]
+    # Ta bort HTML-taggar
+    window = re.sub(r"<[^>]+>", " ", window)
+    # Avkoda vanliga blankstegs-entiteter (tusentalsavgränsare)
+    window = (
+        window.replace("&nbsp;", " ")
+        .replace("&#xA0;", " ")
+        .replace("&#160;", " ")
+        .replace("\u00a0", " ")
+    )
+
+    m = re.search(r"([\d][\d\s]{0,12})\s*st\b", window)
+    if not m:
+        return None
+    number = re.sub(r"\s+", "", m.group(1))
+    return int(number) if number.isdigit() else None
+
+
 def get_nordnet_owners(url: str, debug: bool = False) -> int:
     """Hämtar antal ägare hos Nordnet direkt från allaaktier.se.
 
     Sidan visar 'Ägare Nordnet <N> st' och 'Ägare Avanza <N> st' som vanlig
-    server-renderad text, öppet för alla (bara historikgrafen kräver login).
+    server-renderad HTML, öppet för alla (bara historikgrafen kräver login).
     """
     resp = requests.get(url, headers=HEADERS, timeout=20)
     resp.raise_for_status()
     html = resp.text
 
     if debug:
-        idx = html.find("Ägare Nordnet")
-        print("---- DEBUG: kontext runt 'Ägare Nordnet' ----")
-        print(html[max(0, idx - 50):idx + 150] if idx != -1 else "Hittade inte texten alls.")
-        idx2 = html.find("Ägare Avanza")
-        print("---- DEBUG: kontext runt 'Ägare Avanza' ----")
-        print(html[max(0, idx2 - 50):idx2 + 150] if idx2 != -1 else "Hittade inte texten alls.")
-        print("---- slut på debug-utskrift ----")
+        for label in ("Ägare Nordnet", "Ägare Avanza"):
+            idx = html.find(label)
+            print(f"---- DEBUG: kontext runt '{label}' ----")
+            print(html[max(0, idx - 30):idx + 250] if idx != -1 else "Hittade inte texten alls.")
+            print(f"---- Tolkat värde: {_extract_owner_count_from_html(html, label)} ----")
 
-    m = re.search(r"Ägare\s+Nordnet\s*([\d\s\u00A0]{2,10})\s*st", html)
-    if not m:
+    count = _extract_owner_count_from_html(html, "Ägare Nordnet")
+    if count is None:
         raise RuntimeError(
-            "Kunde inte hitta 'Ägare Nordnet <N> st' på allaaktier.se. "
+            "Kunde inte hitta/tolka 'Ägare Nordnet ... st' på allaaktier.se. "
             "Sidan kan ha ändrat struktur. Kör 'python track_owners.py "
             "--debug-nordnet' och skicka utskriften för felsökning."
         )
-    number = re.sub(r"[\s\u00A0]", "", m.group(1))
-    if not number.isdigit():
-        raise RuntimeError(f"Kunde inte tolka talet '{m.group(1)}' som ett heltal.")
-    return int(number)
+    return count
 
 
 # ---------------------------------------------------------------------------
