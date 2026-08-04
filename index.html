@@ -102,7 +102,9 @@
 
   <div class="card">
     <div class="range-buttons" id="rangeButtons">
+      <button data-range="1w">Vecka</button>
       <button data-range="1m">1 mån</button>
+      <button data-range="3m">3 mån</button>
       <button data-range="6m">6 mån</button>
       <button data-range="1y">1 år</button>
       <button data-range="all" class="active">Allt</button>
@@ -130,7 +132,7 @@ function daysAgo(n) {
 
 function filterByRange(data, range) {
   if (range === "all") return data;
-  const cutoff = { "1m": 30, "6m": 182, "1y": 365 }[range];
+  const cutoff = { "1w": 7, "1m": 30, "3m": 91, "6m": 182, "1y": 365 }[range];
   const cutoffDate = daysAgo(cutoff);
   return data.filter(d => new Date(d.date) >= cutoffDate);
 }
