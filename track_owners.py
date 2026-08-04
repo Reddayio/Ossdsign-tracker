@@ -69,6 +69,23 @@ NORDNET_KEY_CANDIDATES = [
 # Avanza
 # ---------------------------------------------------------------------------
 
+def _find_key_recursive(obj, target_key: str):
+    """Letar rekursivt efter en nyckel var som helst i en nästlad dict/list."""
+    if isinstance(obj, dict):
+        if target_key in obj:
+            return obj[target_key]
+        for value in obj.values():
+            found = _find_key_recursive(value, target_key)
+            if found is not None:
+                return found
+    elif isinstance(obj, list):
+        for item in obj:
+            found = _find_key_recursive(item, target_key)
+            if found is not None:
+                return found
+    return None
+
+
 def get_avanza_owners(orderbook_id: str) -> int:
     """Hämtar antal ägare hos Avanza via pyavanza (obemannat, publikt API)."""
     import pyavanza
@@ -78,12 +95,19 @@ def get_avanza_owners(orderbook_id: str) -> int:
             return await pyavanza.get_stock_async(session, orderbook_id)
 
     data = asyncio.run(_fetch())
-    if "numberOfOwners" not in data:
-        raise RuntimeError(
-            "Fältet 'numberOfOwners' saknas i Avanza-svaret. "
-            f"Tillgängliga fält: {list(data.keys())}"
-        )
-    return int(data["numberOfOwners"])
+
+    # Avanzas API har bytt struktur över tid, så vi letar brett efter fältet
+    # istället för att anta en exakt path.
+    for candidate_key in ("numberOfOwners", "numberOfShareholders", "ownerCount"):
+        value = _find_key_recursive(data, candidate_key)
+        if value is not None:
+            return int(value)
+
+    raise RuntimeError(
+        "Hittade inget ägarantal i Avanza-svaret, oavsett nästling. "
+        f"Tillgängliga toppnivåfält: {list(data.keys())}. "
+        "Kör 'python track_owners.py --debug-avanza' för att se hela strukturen."
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -208,9 +232,21 @@ def post_to_discord(avanza: int, nordnet: int, avanza_diff: int, nordnet_diff: i
 
 def main():
     debug_nordnet = "--debug-nordnet" in sys.argv
+    debug_avanza = "--debug-avanza" in sys.argv
 
     if debug_nordnet:
         get_nordnet_owners(NORDNET_URL, debug=True)
+        return
+
+    if debug_avanza:
+        import pyavanza
+
+        async def _fetch():
+            async with aiohttp.ClientSession() as session:
+                return await pyavanza.get_stock_async(session, AVANZA_ORDERBOOK_ID)
+
+        data = asyncio.run(_fetch())
+        print(json.dumps(data, indent=2, ensure_ascii=False))
         return
 
     print("Hämtar antal ägare hos Avanza...")
