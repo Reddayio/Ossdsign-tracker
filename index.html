@@ -51,6 +51,7 @@
   .diff.up { color: var(--accent); }
   .diff.down { color: var(--avanza); }
   .diff.flat { color: var(--muted); }
+  .stat-card .sublabel { color: var(--muted); font-size: 0.75rem; margin-top: 2px; }
   .card {
     background: var(--card);
     border: 1px solid var(--border);
@@ -99,6 +100,7 @@
   <div class="subtitle">Avanza & Nordnet, uppdateras dagligen</div>
 
   <div class="stats" id="stats"></div>
+  <div class="stats" id="statsExtra" style="margin-top:-8px;"></div>
 
   <div class="card">
     <div class="range-buttons" id="rangeButtons">
@@ -139,25 +141,29 @@ function filterByRange(data, range) {
 
 function renderStats(data) {
   const statsEl = document.getElementById("stats");
-  if (data.length === 0) { statsEl.innerHTML = ""; return; }
+  const statsExtraEl = document.getElementById("statsExtra");
+  if (data.length === 0) { statsEl.innerHTML = ""; statsExtraEl.innerHTML = ""; return; }
 
   const latest = data[data.length - 1];
   const prev = data.length > 1 ? data[data.length - 2] : null;
   const first = data[0];
 
   function diffLine(curr, prevVal) {
-    if (prevVal === null) return "";
+    if (prevVal === null || prevVal === 0) return "";
     const diff = curr - prevVal;
+    const pct = (diff / prevVal * 100);
     const cls = diff > 0 ? "up" : diff < 0 ? "down" : "flat";
     const sign = diff > 0 ? "+" : "";
-    return `<div class="diff ${cls}">${sign}${diff} sen igår</div>`;
+    const pctSign = pct > 0 ? "+" : "";
+    return `<div class="diff ${cls}">${sign}${diff} (${pctSign}${pct.toFixed(1)}%) sen igår</div>`;
   }
 
-  function card(label, value, diff) {
+  function card(label, value, diff, sublabel) {
     return `<div class="stat-card">
       <div class="label">${label}</div>
-      <div class="value">${value.toLocaleString("sv-SE")}</div>
-      ${diff}
+      <div class="value">${typeof value === "number" ? value.toLocaleString("sv-SE") : value}</div>
+      ${diff || ""}
+      ${sublabel ? `<div class="sublabel">${sublabel}</div>` : ""}
     </div>`;
   }
 
@@ -170,6 +176,32 @@ function renderStats(data) {
     card("Nordnet", latest.nordnet, diffLine(latest.nordnet, prev ? prev.nordnet : null)) +
     card("Totalt", totalNow, diffLine(totalNow, totalPrev)) +
     card("Sen start", totalNow - totalStart >= 0 ? "+" + (totalNow - totalStart) : (totalNow - totalStart), "");
+
+  // Rekord (högsta någonsin)
+  function recordFor(key) {
+    let best = data[0];
+    for (const d of data) if (d[key] > best[key]) best = d;
+    return best;
+  }
+  const recAvanza = recordFor("avanza");
+  const recNordnet = recordFor("nordnet");
+
+  // Streak: antal dagar i rad (från slutet) med ökning i totalt antal
+  let streak = 0;
+  for (let i = data.length - 1; i > 0; i--) {
+    const currTotal = data[i].avanza + data[i].nordnet;
+    const prevTotal = data[i - 1].avanza + data[i - 1].nordnet;
+    if (currTotal > prevTotal) streak++;
+    else break;
+  }
+
+  const ratio = latest.nordnet > 0 ? (latest.avanza / latest.nordnet) : null;
+
+  statsExtraEl.innerHTML =
+    card("Rekord Avanza", recAvanza.avanza, "", recAvanza.date) +
+    card("Rekord Nordnet", recNordnet.nordnet, "", recNordnet.date) +
+    card("Streak", streak > 0 ? streak + " dagar" : "–", "", streak > 0 ? "i rad med ökning" : "ingen just nu") +
+    card("Ratio", ratio !== null ? ratio.toFixed(2) : "–", "", "Avanza per Nordnet-ägare");
 }
 
 function renderChart(range) {
