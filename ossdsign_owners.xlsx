@@ -1,0 +1,43 @@
+name: Track OssDsign owners
+
+on:
+  schedule:
+    # Körs 18:00 UTC = 20:00 svensk tid under sommartid (CEST, mars-okt)
+    # och 19:00 svensk tid under vintertid (CET, okt-mars). Cron kan inte
+    # följa DST automatiskt, så tiden pendlar en timme två gånger om året.
+    # Avanza/Nordnet uppdaterar sina ägarsiffror ca 18-19 svensk tid, så
+    # detta ligger tryggt efter det oavsett årstid.
+    - cron: "0 18 * * *"
+  workflow_dispatch: {}   # gör att du kan trigga en körning manuellt i GitHub UI
+
+permissions:
+  contents: write
+
+jobs:
+  track:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run tracker
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          CHART_URL: ${{ vars.CHART_URL }}
+        run: python track_owners.py
+
+      - name: Commit updated history + Excel-fil
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/history.json data/ossdsign_owners.xlsx
+          git diff --staged --quiet && echo "Inga ändringar att committa." || git commit -m "Uppdatera ägarhistorik $(date -u +'%Y-%m-%d')"
+          git push
