@@ -31,27 +31,19 @@
   .stock-tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
   .stock-tabs button {
     background: var(--card); border: 1px solid var(--border); color: var(--text);
-    padding: 8px 18px; border-radius: 999px; font-size: 0.95rem; font-weight: 500;
+    padding: 6px 18px 6px 8px; border-radius: 999px; font-size: 0.95rem; font-weight: 500;
     cursor: pointer; transition: all 0.15s ease;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .stock-tabs button img {
+    height: 28px; width: auto; max-width: 90px;
+    border-radius: 4px; object-fit: contain;
+    background: #fff; padding: 3px;
   }
   .stock-tabs button:hover { border-color: var(--muted); }
   .stock-tabs button.active { background: var(--text); color: var(--bg); border-color: var(--text); }
 
-  .company-card {
-    display: flex;
-    gap: 14px;
-    align-items: flex-start;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 14px 18px;
-    margin-bottom: 16px;
-  }
-  .company-card img {
-    height: 52px; width: auto; max-width: 160px;
-    border-radius: 6px; object-fit: contain;
-    background: #fff; padding: 6px; flex-shrink: 0;
-  }
+  .company-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px; margin-bottom: 16px; }
   .company-card .desc { font-size: 0.85rem; color: var(--muted); line-height: 1.4; margin: 0 0 6px; }
   .company-card a { color: var(--nordnet); font-size: 0.82rem; text-decoration: none; }
   .company-card a:hover { text-decoration: underline; }
@@ -155,7 +147,10 @@ function filterByRange(data, range) {
 function renderStockTabs() {
   const el = document.getElementById("stockTabs");
   el.innerHTML = STOCKS.map(s =>
-    `<button data-key="${s.key}" class="${s.key === currentStock ? 'active' : ''}">${s.name}</button>`
+    `<button data-key="${s.key}" class="${s.key === currentStock ? 'active' : ''}">
+      <img src="${s.logo}" alt="" onerror="this.style.display='none'">
+      ${s.name}
+    </button>`
   ).join("");
   el.querySelectorAll("button").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -270,11 +265,8 @@ document.querySelectorAll("#rangeButtons button").forEach(btn => {
 function renderCompanyCard(stock) {
   const el = document.getElementById("companyCard");
   el.innerHTML = `
-    <img src="${stock.logo}" alt="${stock.name} logga" onerror="this.style.display='none'">
-    <div>
-      <p class="desc">${stock.desc}</p>
-      <a href="${stock.mfn}" target="_blank" rel="noopener">Alla pressmeddelanden & rapporter (MFN.se) →</a>
-    </div>
+    <p class="desc">${stock.desc}</p>
+    <a href="${stock.mfn}" target="_blank" rel="noopener">Alla pressmeddelanden & rapporter (MFN.se) →</a>
   `;
 }
 
