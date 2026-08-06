@@ -1,14 +1,11 @@
 name: Track OssDsign owners
 
 on:
-  schedule:
-    # Körs 18:00 UTC = 20:00 svensk tid under sommartid (CEST, mars-okt)
-    # och 19:00 svensk tid under vintertid (CET, okt-mars). Cron kan inte
-    # följa DST automatiskt, så tiden pendlar en timme två gånger om året.
-    # Avanza/Nordnet uppdaterar sina ägarsiffror ca 18-19 svensk tid, så
-    # detta ligger tryggt efter det oavsett årstid.
-    - cron: "0 18 * * *"
-  workflow_dispatch: {}   # gör att du kan trigga en körning manuellt i GitHub UI
+  # OBS: schemaläggningen sköts INTE längre av GitHubs egna cron (den var
+  # opålitlig, ibland flera timmar sen). Istället triggas denna workflow av
+  # en extern schemaläggare (cron-job.org) varje kväll kl 20:00 svensk tid,
+  # via ett POST-anrop till GitHubs API mot workflow_dispatch nedan.
+  workflow_dispatch: {}
 
 permissions:
   contents: write
