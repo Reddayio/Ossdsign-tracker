@@ -37,6 +37,24 @@
   .stock-tabs button:hover { border-color: var(--muted); }
   .stock-tabs button.active { background: var(--text); color: var(--bg); border-color: var(--text); }
 
+  .company-card {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin-bottom: 16px;
+  }
+  .company-card img {
+    width: 44px; height: 44px; border-radius: 8px; object-fit: contain;
+    background: #fff; padding: 4px; flex-shrink: 0;
+  }
+  .company-card .desc { font-size: 0.85rem; color: var(--muted); line-height: 1.4; margin: 0 0 6px; }
+  .company-card a { color: var(--nordnet); font-size: 0.82rem; text-decoration: none; }
+  .company-card a:hover { text-decoration: underline; }
+
   .stats { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
   .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px; flex: 1; min-width: 140px; }
   .stat-card .label { color: var(--muted); font-size: 0.8rem; margin-bottom: 4px; }
@@ -67,6 +85,8 @@
 
   <div class="stock-tabs" id="stockTabs"></div>
 
+  <div class="company-card" id="companyCard"></div>
+
   <div class="stats" id="stats"></div>
   <div class="stats" id="statsExtra" style="margin-top:-8px;"></div>
 
@@ -93,9 +113,24 @@
 
 <script>
 const STOCKS = [
-  { key: "ossdsign", name: "OssDsign" },
-  { key: "smarteye", name: "Smart Eye" },
-  { key: "integrum", name: "Integrum" },
+  {
+    key: "ossdsign", name: "OssDsign",
+    logo: "https://www.google.com/s2/favicons?domain=ossdsign.com&sz=128",
+    desc: "Utvecklar och marknadsför ortobiologiska produkter som stödjer kroppens egen läkning – bland annat OssDsign Catalyst, ett syntetiskt bengraft för ryggradsfusion. Grundat 2011, huvudkontor i Uppsala.",
+    mfn: "https://mfn.se/all/a/ossdsign",
+  },
+  {
+    key: "smarteye", name: "Smart Eye",
+    logo: "https://www.google.com/s2/favicons?domain=smarteye.ai&sz=128",
+    desc: "Ledande inom \"Human Insight AI\" – teknik som tolkar och förutspår mänskligt beteende, bland annat via eye-tracking i fordon (förarövervakning) och beteendeforskning genom dotterbolagen Affectiva och iMotions. Grundat 1999, huvudkontor i Sverige.",
+    mfn: "https://mfn.se/all/a/smart-eye",
+  },
+  {
+    key: "integrum", name: "Integrum",
+    logo: "https://www.google.com/s2/favicons?domain=integrum.se&sz=128",
+    desc: "Medicinteknikbolag som utvecklar skelettförankrade proteser baserat på OPRA-implantatsystemet, sålt till sjukhus världen över för patienter med amputationer. Grundat 1998, huvudkontor i Mölndal.",
+    mfn: "https://mfn.se/all/a/integrum",
+  },
 ];
 
 let currentStock = STOCKS[0].key;
@@ -231,9 +266,21 @@ document.querySelectorAll("#rangeButtons button").forEach(btn => {
   });
 });
 
+function renderCompanyCard(stock) {
+  const el = document.getElementById("companyCard");
+  el.innerHTML = `
+    <img src="${stock.logo}" alt="${stock.name} logga" onerror="this.style.display='none'">
+    <div>
+      <p class="desc">${stock.desc}</p>
+      <a href="${stock.mfn}" target="_blank" rel="noopener">Alla pressmeddelanden & rapporter (MFN.se) →</a>
+    </div>
+  `;
+}
+
 function loadStock(key) {
   const stock = STOCKS.find(s => s.key === key);
   document.getElementById("pageTitle").textContent = `Agartracker – ${stock.name}`;
+  renderCompanyCard(stock);
 
   fetch(`./data/history_${key}.json?_=` + Date.now())
     .then(r => r.json())
