@@ -28,24 +28,14 @@
   h1 { font-size: 1.4rem; font-weight: 600; margin: 0 0 4px; }
   .subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 16px; }
 
-  .stock-tabs { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+  .stock-tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
   .stock-tabs button {
-    background: var(--card); border: 1px solid var(--border);
-    padding: 10px 16px; border-radius: 12px; cursor: pointer; transition: all 0.15s ease;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .stock-tabs button img {
-    height: 32px; width: auto; max-width: 130px;
-    object-fit: contain;
-    background: #fff; border-radius: 4px; padding: 4px;
+    background: var(--card); border: 1px solid var(--border); color: var(--text);
+    padding: 8px 18px; border-radius: 999px; font-size: 0.95rem; font-weight: 500;
+    cursor: pointer; transition: all 0.15s ease;
   }
   .stock-tabs button:hover { border-color: var(--muted); }
-  .stock-tabs button.active { border-color: var(--text); background: #1d2229; }
-
-  .company-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px; margin-bottom: 16px; }
-  .company-card .desc { font-size: 0.85rem; color: var(--muted); line-height: 1.4; margin: 0 0 6px; }
-  .company-card a { color: var(--nordnet); font-size: 0.82rem; text-decoration: none; }
-  .company-card a:hover { text-decoration: underline; }
+  .stock-tabs button.active { background: var(--text); color: var(--bg); border-color: var(--text); }
 
   .stats { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
   .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px; flex: 1; min-width: 140px; }
@@ -77,8 +67,6 @@
 
   <div class="stock-tabs" id="stockTabs"></div>
 
-  <div class="company-card" id="companyCard"></div>
-
   <div class="stats" id="stats"></div>
   <div class="stats" id="statsExtra" style="margin-top:-8px;"></div>
 
@@ -105,27 +93,9 @@
 
 <script>
 const STOCKS = [
-  {
-    key: "ossdsign", name: "OssDsign",
-    logo: "https://www.ossdsign.com/upl/images/944269/ossdsign-rgb-guidelines.svg",
-    blurb: "Nanosyntetiskt bengraft för ryggradsfusion",
-    desc: "Utvecklar och marknadsför ortobiologiska produkter som stödjer kroppens egen läkning – bland annat OssDsign Catalyst, ett syntetiskt bengraft för ryggradsfusion. Grundat 2011, huvudkontor i Uppsala.",
-    mfn: "https://mfn.se/all/a/ossdsign",
-  },
-  {
-    key: "smarteye", name: "Smart Eye",
-    logo: "https://smarteye.se/wp-content/uploads/2022/06/smarteye-logo.png",
-    blurb: "AI för förarövervakning & beteendeforskning",
-    desc: "Ledande inom \"Human Insight AI\" – teknik som tolkar och förutspår mänskligt beteende, bland annat via eye-tracking i fordon (förarövervakning) och beteendeforskning genom dotterbolagen Affectiva och iMotions. Grundat 1999, huvudkontor i Sverige.",
-    mfn: "https://mfn.se/all/a/smart-eye",
-  },
-  {
-    key: "integrum", name: "Integrum",
-    logo: "https://integrum.se/wp-content/themes/integrum/dist/img/integrum.png",
-    blurb: "Skelettförankrade proteser för amputerade",
-    desc: "Medicinteknikbolag som utvecklar skelettförankrade proteser baserat på OPRA-implantatsystemet, sålt till sjukhus världen över för patienter med amputationer. Grundat 1998, huvudkontor i Mölndal.",
-    mfn: "https://mfn.se/all/a/integrum",
-  },
+  { key: "ossdsign", name: "OssDsign" },
+  { key: "smarteye", name: "Smart Eye" },
+  { key: "integrum", name: "Integrum" },
 ];
 
 let currentStock = STOCKS[0].key;
@@ -149,9 +119,7 @@ function filterByRange(data, range) {
 function renderStockTabs() {
   const el = document.getElementById("stockTabs");
   el.innerHTML = STOCKS.map(s =>
-    `<button data-key="${s.key}" class="${s.key === currentStock ? 'active' : ''}" title="${s.name}">
-      <img src="${s.logo}" alt="${s.name}" onerror="this.outerHTML='${s.name}'">
-    </button>`
+    `<button data-key="${s.key}" class="${s.key === currentStock ? 'active' : ''}">${s.name}</button>`
   ).join("");
   el.querySelectorAll("button").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -263,18 +231,9 @@ document.querySelectorAll("#rangeButtons button").forEach(btn => {
   });
 });
 
-function renderCompanyCard(stock) {
-  const el = document.getElementById("companyCard");
-  el.innerHTML = `
-    <p class="desc">${stock.desc}</p>
-    <a href="${stock.mfn}" target="_blank" rel="noopener">Alla pressmeddelanden & rapporter (MFN.se) →</a>
-  `;
-}
-
 function loadStock(key) {
   const stock = STOCKS.find(s => s.key === key);
   document.getElementById("pageTitle").textContent = `Agartracker – ${stock.name}`;
-  renderCompanyCard(stock);
 
   fetch(`./data/history_${key}.json?_=` + Date.now())
     .then(r => r.json())
