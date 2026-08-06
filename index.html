@@ -28,20 +28,26 @@
   h1 { font-size: 1.4rem; font-weight: 600; margin: 0 0 4px; }
   .subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 16px; }
 
-  .stock-tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+  .stock-tabs { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
   .stock-tabs button {
     background: var(--card); border: 1px solid var(--border); color: var(--text);
-    padding: 6px 18px 6px 8px; border-radius: 999px; font-size: 0.95rem; font-weight: 500;
-    cursor: pointer; transition: all 0.15s ease;
-    display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px; border-radius: 12px; cursor: pointer; transition: all 0.15s ease;
+    display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+    text-align: left; flex: 1; min-width: 180px; max-width: 260px;
   }
+  .stock-tabs button .tab-top { display: flex; align-items: center; gap: 8px; }
   .stock-tabs button img {
-    height: 28px; width: auto; max-width: 90px;
+    height: 26px; width: auto; max-width: 80px;
     border-radius: 4px; object-fit: contain;
     background: #fff; padding: 3px;
   }
+  .stock-tabs button .tab-name { font-size: 0.95rem; font-weight: 600; }
+  .stock-tabs button .tab-blurb {
+    font-size: 0.78rem; color: var(--muted); line-height: 1.35;
+  }
   .stock-tabs button:hover { border-color: var(--muted); }
-  .stock-tabs button.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .stock-tabs button.active { border-color: var(--text); background: #1d2229; }
+  .stock-tabs button.active .tab-name { color: var(--text); }
 
   .company-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px; margin-bottom: 16px; }
   .company-card .desc { font-size: 0.85rem; color: var(--muted); line-height: 1.4; margin: 0 0 6px; }
@@ -109,18 +115,21 @@ const STOCKS = [
   {
     key: "ossdsign", name: "OssDsign",
     logo: "https://www.ossdsign.com/upl/images/932182/logo.svg",
+    blurb: "Nanosyntetiskt bengraft för ryggradsfusion",
     desc: "Utvecklar och marknadsför ortobiologiska produkter som stödjer kroppens egen läkning – bland annat OssDsign Catalyst, ett syntetiskt bengraft för ryggradsfusion. Grundat 2011, huvudkontor i Uppsala.",
     mfn: "https://mfn.se/all/a/ossdsign",
   },
   {
     key: "smarteye", name: "Smart Eye",
     logo: "https://smarteye.se/wp-content/uploads/2022/06/smarteye-logo.png",
+    blurb: "AI för förarövervakning & beteendeforskning",
     desc: "Ledande inom \"Human Insight AI\" – teknik som tolkar och förutspår mänskligt beteende, bland annat via eye-tracking i fordon (förarövervakning) och beteendeforskning genom dotterbolagen Affectiva och iMotions. Grundat 1999, huvudkontor i Sverige.",
     mfn: "https://mfn.se/all/a/smart-eye",
   },
   {
     key: "integrum", name: "Integrum",
     logo: "https://integrum.se/wp-content/themes/integrum/dist/img/integrum.png",
+    blurb: "Skelettförankrade proteser för amputerade",
     desc: "Medicinteknikbolag som utvecklar skelettförankrade proteser baserat på OPRA-implantatsystemet, sålt till sjukhus världen över för patienter med amputationer. Grundat 1998, huvudkontor i Mölndal.",
     mfn: "https://mfn.se/all/a/integrum",
   },
@@ -148,8 +157,11 @@ function renderStockTabs() {
   const el = document.getElementById("stockTabs");
   el.innerHTML = STOCKS.map(s =>
     `<button data-key="${s.key}" class="${s.key === currentStock ? 'active' : ''}">
-      <img src="${s.logo}" alt="" onerror="this.style.display='none'">
-      ${s.name}
+      <div class="tab-top">
+        <img src="${s.logo}" alt="" onerror="this.style.display='none'">
+        <span class="tab-name">${s.name}</span>
+      </div>
+      <div class="tab-blurb">${s.blurb}</div>
     </button>`
   ).join("");
   el.querySelectorAll("button").forEach(btn => {
