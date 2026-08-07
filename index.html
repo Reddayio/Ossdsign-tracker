@@ -55,6 +55,16 @@
   }
   .range-buttons button:hover { border-color: var(--muted); }
   .range-buttons button.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+
+  .period-summary {
+    font-size: 0.88rem; color: var(--text); margin-bottom: 16px;
+    padding: 10px 14px; background: #1a1e25; border-radius: 10px;
+    line-height: 1.5;
+  }
+  .period-summary .range-label { color: var(--muted); font-size: 0.78rem; display: block; margin-bottom: 4px; }
+  .period-summary b.up { color: var(--accent); }
+  .period-summary b.down { color: var(--avanza); }
+  .period-summary b.flat { color: var(--muted); }
   canvas { max-height: 420px; }
   .empty { text-align: center; color: var(--muted); padding: 60px 20px; }
   footer { text-align: center; color: var(--muted); font-size: 0.75rem; margin-top: 24px; }
@@ -81,6 +91,7 @@
       <button data-range="all" class="active">Allt</button>
     </div>
     <div id="chartHolder">
+      <div class="period-summary" id="periodSummary"></div>
       <canvas id="ownerChart"></canvas>
     </div>
     <div id="emptyState" class="empty" style="display:none;">
@@ -193,9 +204,49 @@ function renderStats(data) {
     card("Ratio", ratio !== null ? ratio.toFixed(2) : "–", "", "Avanza per Nordnet-ägare");
 }
 
+const RANGE_LABELS = {
+  "1w": "senaste veckan", "1m": "senaste månaden", "3m": "senaste 3 månaderna",
+  "6m": "senaste 6 månaderna", "1y": "senaste året", "3y": "senaste 3 åren", "all": "hela perioden",
+};
+
+function fmtDateSv(dateStr) {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("sv-SE", { day: "numeric", month: "short" });
+}
+
+function renderPeriodSummary(range, data) {
+  const el = document.getElementById("periodSummary");
+  if (data.length < 2) {
+    el.innerHTML = `<span class="range-label">${RANGE_LABELS[range]}</span>Inte nog med data ännu för att visa en förändring över den här perioden.`;
+    return;
+  }
+
+  const first = data[0];
+  const last = data[data.length - 1];
+
+  function part(label, curr, prevVal) {
+    const diff = curr - prevVal;
+    const pct = prevVal !== 0 ? (diff / prevVal * 100) : 0;
+    const cls = diff > 0 ? "up" : diff < 0 ? "down" : "flat";
+    const sign = diff > 0 ? "+" : "";
+    return `${label}: <b class="${cls}">${sign}${diff} (${sign}${pct.toFixed(1)}%)</b>`;
+  }
+
+  const totalFirst = first.avanza + first.nordnet;
+  const totalLast = last.avanza + last.nordnet;
+
+  el.innerHTML = `
+    <span class="range-label">${RANGE_LABELS[range]} (${fmtDateSv(first.date)} – ${fmtDateSv(last.date)})</span>
+    ${part("Avanza", last.avanza, first.avanza)} &nbsp;·&nbsp;
+    ${part("Nordnet", last.nordnet, first.nordnet)} &nbsp;·&nbsp;
+    ${part("Totalt", totalLast, totalFirst)}
+  `;
+}
+
 function renderChart(range) {
   currentRange = range;
   const data = filterByRange(fullData, range);
+  renderPeriodSummary(range, data);
   const labels = data.map(d => d.date);
   const avanzaData = data.map(d => d.avanza);
   const nordnetData = data.map(d => d.nordnet);
